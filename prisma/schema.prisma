@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+// Enums
+enum Gender {
+  Male
+  Female
+}
+
+enum VisibilityStatus {
+  Public
+  Private
+}
+
+enum FriendshipStatus {
+  Pending
+  Accepted
+  Rejected
+}
+
+// Models
+model User {
+  id                    String                @id @default(uuid())
+  username              String                @unique
+  image                 String
+  email                 String                @unique
+  emailVerified         DateTime?
+  hashedPassword        String                // Ensure secure handling in application logic
+  gender                Gender?               // Using Enum
+  birthday              DateTime?
+  bio                   String?               @db.Text
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @default(now()) @updatedAt
+  isAdmin               Boolean               @default(false)
+  isModerator           Boolean               @default(false)
+  games                 Game[]
+  achievements          Achievement[]
+  leaderboardScores     Leaderboard[]
+  friendshipsAsRequestor Friendship[]         @relation("requestorUser")
+  friendshipsAsReceiver Friendship[]          @relation("receiverUser")
+  messagesSent          Message[]             @relation("senderUser")
+  messagesReceived      Message[]             @relation("receiverUser")
+  gameStats             GameStat[]
+  apiKeys               ApiKey[]
+  userAchievements      UserAchievement[]
+  postmanCollections    PostmanCollection[]
+  errorLogs             ErrorLog[]
+
+  // Soft delete field (optional)
+  deletedAt             DateTime?
+
+  @@map("users")
+}
+
+model Game {
+  id                String            @id @default(uuid())
+  userId            String
+  name              String            @map("game_name")
+  playLocationLink  String            @map("play_location_link")
+  thumbnailImage    String            @map("thumbnail_image")
+  apiKey            String
+  visibilityStatus  VisibilityStatus  // Using Enum
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @default(now()) @updatedAt
+  user              User              @relation(fields: [userId], references: [id])
+  achievements      Achievement[]
+  leaderboardScores Leaderboard[]
+  gameStats         GameStat[]
+  gameAchievements  GameAchievement[]
+  gameContents      GameContent[]
+  apiKeys           ApiKey[]
+  deletedAt         DateTime?
+
+  @@index([userId])
+  @@map("games")
+}
+
+model Achievement {
+  id                String            @id @default(uuid())
+  gameId         String
+  userId         String
+  title          String
+  imageLink      String   @map("image_link")
+  dateAchieved   DateTime @map("date_achieved")
+  game           Game     @relation(fields: [gameId], references: [id])
+  user           User     @relation(fields: [userId], references: [id])
+
+  @@index([gameId])
+  @@map("achievements")
+  @@index([userId])
+}
+
+model Leaderboard {
+  id                String            @id @default(uuid())
+  gameId       String
+  userId       String
+  score        Int
+  time         DateTime
+  game         Game   @relation(fields: [gameId], references: [id])
+  user         User   @relation(fields: [userId], references: [id])
+
+  @@index([gameId, userId])
+  @@map("leaderboard")
+  @@index([userId])
+}
+
+model Friendship {
+  id                 String           @id @default(uuid())
+  requestorUserId    String           @map("requestor_user_id")
+  receiverUserId     String           @map("receiver_user_id")
+  status             FriendshipStatus // Using Enum
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @default(now()) @updatedAt
+  requestorUser      User             @relation("requestorUser", fields: [requestorUserId], references: [id])
+  receiverUser       User             @relation("receiverUser", fields: [receiverUserId], references: [id])
+
+  @@index([requestorUserId])
+  @@map("friendships")
+  @@index([receiverUserId])
+}
+
+model Message {
+  id              String            @id @default(uuid())
+  senderUserId    String    @map("sender_user_id")
+  receiverUserId  String    @map("receiver_user_id")
+  content         String
+  isRead          Boolean @default(false) @map("is_read")
+  createdAt       DateTime @default(now())
+  senderUser      User    @relation("senderUser", fields: [senderUserId], references: [id])
+  receiverUser    User    @relation("receiverUser", fields: [receiverUserId], references: [id])
+  attachments     MessageAttachment[]
+  deletedAt       DateTime?
+
+  @@index([senderUserId, receiverUserId])
+  @@map("messages")
+  @@index([receiverUserId])
+}
+
+model GameStat {
+  id                String            @id @default(uuid())
+  gameId       String
+  userId       String
+  bestScore    Int?
+  bestTime     DateTime?
+  totalPlays   Int      @default(0)
+  game         Game     @relation(fields: [gameId], references: [id])
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@index([gameId])
+  @@map("game_stats")
+  @@index([userId])
+}
+
+model ApiKey {
+  id                String            @id @default(uuid())
+  userId        String
+  gameId        String
+  encryptedToken String?
+  apiKey        String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+  user          User     @relation(fields: [userId], references: [id])
+  game          Game     @relation(fields: [gameId], references: [id])
+
+  @@index([userId])
+  @@map("api_keys")
+  @@index([gameId])
+}
+
+model GameAchievement {
+  id                String            @id @default(uuid())
+  gameId       String
+  title        String
+  imageLink    String @map("image_link")
+  game         Game   @relation(fields: [gameId], references: [id])
+  users        UserAchievement[]
+
+  @@index([gameId])
+  @@map("game_achievements")
+}
+
+model UserAchievement {
+  id                String            @id @default(uuid())
+  userId            String
+  gameAchievementId String      @map("game_achievement_id")
+  dateAchieved      DateTime @map("date_achieved")
+  user              User     @relation(fields: [userId], references: [id])
+  gameAchievement   GameAchievement @relation(fields: [gameAchievementId], references: [id])
+
+  @@index([userId])
+  @@map("user_achievements")
+  @@index([gameAchievementId])
+}
+
+model GameContent {
+  id                String            @id @default(uuid())
+  gameId      String
+  contentName String @map("content_name")
+  description String?
+  game        Game   @relation(fields: [gameId], references: [id])
+
+  @@index([gameId])
+  @@map("game_content")
+}
+
+model MessageAttachment {
+  id                String            @id @default(uuid())
+  messageId   String    @map("message_id")
+  fileType    String @map("file_type")
+  filePath    String @map("file_path")
+  message     Message @relation(fields: [messageId], references: [id])
+
+  @@index([messageId])
+  @@map("message_attachments")
+}
+
+model PostmanCollection {
+  id                String            @id @default(uuid())
+  userId         String
+  collectionData String   @map("collection_data")
+  user           User     @relation(fields: [userId], references: [id])
+  deletedAt      DateTime?
+
+  @@index([userId])
+  @@map("postman_collections")
+}
+
+model PlatformSetting {
+  id                String            @id @default(uuid())
+  name        String   @unique
+  value       String
+  description String?
+
+  @@map("platform_settings")
+}
+
+model ErrorLog {
+  id                String            @id @default(uuid())
+  errorMessage    String   @map("error_message")
+  errorTime       DateTime @default(now()) @map("error_time")
+  userId          String?     @map("user_id")
+  additionalInfo  String?  @map("additional_info")
+  user            User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("error_logs")
+}

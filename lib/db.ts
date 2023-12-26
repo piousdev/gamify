@@ -1,31 +1,9 @@
-import serverlessMysql from 'serverless-mysql';
-import dotenv from 'dotenv';
+import { PrismaClient } from '@prisma/client';
 
-dotenv.config();
-
-interface Query {
-    query: string;
-    values: any[];
+declare global {
+    var prisma: PrismaClient;
 }
 
-const db = serverlessMysql({
-    config: {
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        database: process.env.DATABASE
-    }
-});
+export const db = globalThis.prisma || new PrismaClient();
 
-export async function executeQuery({ query, values }: Query) {
-    try {
-        const results = await db.query(query, values);
-        await db.end();
-        return results;
-    } catch (error) {
-        console.error('Error executing query: ', { query, values, error });
-        throw error;
-    }
-}
-
-export default db;
+if (process.env.NODE_ENV !== 'production') globalThis.prisma = db;

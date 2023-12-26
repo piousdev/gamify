@@ -1,10 +1,10 @@
-import Navbar from "@/components/Navbar";
-
+import Navbar from "@/components/navigation/Navbar";
+import {UserProvider} from "@/context/UserContext";
 
 export default function Home() {
-  return (
-    <>
-      <Navbar />
-    </>
-  )
+    return (
+        <UserProvider>
+            <Navbar />
+        </UserProvider>
+    )
 }
